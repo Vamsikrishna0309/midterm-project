@@ -36,3 +36,4 @@ print(f"items.json created with {len(food_summary)} items")
 
 top_item = max(food_summary, key=lambda x: food_summary[x]["orders"])
 print(f"Most popular item: {top_item} with {food_summary[top_item]['orders']} orders")
+print(f"Total orders in this file: {len(all_orders)}")
