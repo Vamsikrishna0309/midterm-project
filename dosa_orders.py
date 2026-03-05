@@ -4,11 +4,16 @@ import argparse
 parser = argparse.ArgumentParser(description="Read dosa restaurant orders and summarize them.")
 parser.add_argument("orders_file", help="The JSON file with all the orders")
 args = parser.parse_args()
+print(f"Reading orders from {args.orders_file}...")
+
 
 with open(args.orders_file) as f:
     all_orders = json.load(f)
 
-phone_to_name = {order["phone"]: order["name"] for order in all_orders}
+phone_to_name = {
+    order["phone"]: order["name"]
+    for order in all_orders
+}
 
 with open("customers.json", "w") as f:
     json.dump(phone_to_name, f, indent=4)
