@@ -1,72 +1,108 @@
 # Dosa Restaurant API
 
-REST API for a dosa restaurant. Handles customers, menu items, and orders. Built with Python, FastAPI, and SQLite.
+A backend REST API for managing customers, menu items, and orders at a dosa restaurant. Built with FastAPI and SQLite for the CS490 final project.
 
-## How it works
+## What it does
 
-The API stores everything in a local SQLite file called `db.sqlite`. There are four tables:
+The API lets we do CRUD (create, read, update, delete) on three things: customers, menu items, and orders. we can add a new customer with their name and phone number, put dosas on the menu with prices, and then place orders that link a customer to one or more menu items. Everything gets saved to a SQLite database file so the data sticks around between server restarts.
 
-- `customers` holds name and phone (phone is unique per customer)
-- `items` holds menu items with a name and price
-- `orders` tracks who ordered, when, and any notes
-- `order_items` connects orders to items (since one order can have multiple dosas)
+There are 12 endpoints total, four for each resource:
 
-Foreign keys tie orders back to customers and order_items back to both orders and items. If you try to create an order for a customer that doesn't exist, the API will reject it.
+| Method | Path | What it does |
+|--------|------|-------------|
+| POST | /customers | add a customer |
+| GET | /customers/{id} | look up a customer |
+| PUT | /customers/{id} | change a customer's info |
+| DELETE | /customers/{id} | remove a customer |
+| POST | /items | add a menu item |
+| GET | /items/{id} | look up a menu item |
+| PUT | /items/{id} | change a menu item |
+| DELETE | /items/{id} | remove a menu item |
+| POST | /orders | place an order |
+| GET | /orders/{id} | look up an order |
+| PUT | /orders/{id} | change an order |
+| DELETE | /orders/{id} | cancel an order |
 
-## Getting started
+The API also handles bad input. Duplicate phone numbers and duplicate item names get rejected with a 409 error. Requesting an ID that doesn't exist returns 404. Blank names, negative prices, and empty orders all return 422.
 
-You need Python 3.10+ installed.
+## How it is designed
+
+The database has four tables:
+
+- **customers** — stores `id`, `name`, and `phone`. Phone numbers are unique so two customers can't share the same number.
+- **items** — stores `id`, `name`, and `price`. Item names are unique and prices can't go below zero (enforced by a CHECK constraint in the database itself).
+- **orders** — stores `id`, `customer_id`, `timestamp`, and `notes`. The `customer_id` column is a foreign key pointing back to the customers table, so we can't create an order for a customer that doesn't exist.
+- **order_items** — a join table with `order_id` and `item_id`. This is what lets a single order contain multiple items. Both columns are foreign keys.
+
+The `init_db.py` script creates all four tables with these constraints. The `main.py` file is the FastAPI application. It connects to the same `db.sqlite` file and exposes the 12 endpoints listed above.
+
+Each endpoint opens its own database connection, does the work, and closes it. SQL queries through Python's built in `sqlite3` module. Pydantic models handle the request body parsing: `NewCustomer` for customer data, `NewItem` for menu items, and `NewOrder` for orders.
+
+For orders, when we POST or PUT, the API first checks that the customer exists and that every item ID in wer list exists. If anything is missing it stops and tells we what's wrong. When we delete an order, it cleans up the order_items rows first so the foreign keys don't block the delete.
+
+## How to use it
+
+we need Python 3.10 or newer.
+
+**1. Install dependencies:**
 
 ```
 pip install fastapi uvicorn
 ```
 
-Set up the database (only need to do this once):
+**2. Create the database:**
 
 ```
 python init_db.py
 ```
 
-Start the server:
+This makes a file called `db.sqlite` in the same folder.
+
+**3. Start the server:**
 
 ```
 uvicorn main:app --reload
 ```
 
-Go to http://127.0.0.1:8000/docs to test endpoints in the browser.
+The server runs at `http://127.0.0.1:8000`. we can open `http://127.0.0.1:8000/docs` in wer browser to get an interactive page where we can test every endpoint by clicking buttons.
 
-## API routes
+**4. Try it out with curl:**
 
-Customers: POST /customers, GET /customers/{id}, PUT /customers/{id}, DELETE /customers/{id}
-
-Items: POST /items, GET /items/{id}, PUT /items/{id}, DELETE /items/{id}
-
-Orders: POST /orders, GET /orders/{id}, PUT /orders/{id}, DELETE /orders/{id}
-
-## Quick test with curl
-
-Add a customer:
+Create a customer:
 ```
 curl -X POST http://127.0.0.1:8000/customers -H "Content-Type: application/json" -d "{\"name\": \"Vamsi\", \"phone\": \"732-555-1234\"}"
 ```
 
-Add a menu item:
+Create a menu item:
 ```
 curl -X POST http://127.0.0.1:8000/items -H "Content-Type: application/json" -d "{\"name\": \"Masala Dosa\", \"price\": 10.95}"
 ```
 
-Place an order (customer 1 ordering item 1):
+Place an order (customer 1 orders item 1):
 ```
 curl -X POST http://127.0.0.1:8000/orders -H "Content-Type: application/json" -d "{\"customer_id\": 1, \"item_ids\": [1], \"notes\": \"extra chutney\"}"
 ```
 
-Fetch that order back:
+Get the order back:
 ```
 curl http://127.0.0.1:8000/orders/1
 ```
 
-## Files
+Update the order:
+```
+curl -X PUT http://127.0.0.1:8000/orders/1 -H "Content-Type: application/json" -d "{\"customer_id\": 1, \"item_ids\": [1], \"notes\": \"no chutney\"}"
+```
 
-- `init_db.py` -- builds the empty database with all four tables
-- `main.py` -- the FastAPI server, all 12 endpoints
-- `db.sqlite` -- created when you run init_db.py
+Delete the order:
+```
+curl -X DELETE http://127.0.0.1:8000/orders/1
+```
+
+Note: create customers and items before creating orders, since orders reference them by ID.
+
+## Project files
+
+- `main.py` — the FastAPI server with all 12 endpoints
+- `init_db.py` — run once to create the database and tables
+- `db.sqlite` — the database file (generated by init_db.py)
+- `README.md` — this file
