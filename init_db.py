@@ -1,3 +1,6 @@
+# This file creates the database and tables.
+# Foreign keys are enabled so orders are linked properly to customers and items.
+
 import sqlite3
 import os
 
