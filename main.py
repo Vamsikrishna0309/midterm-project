@@ -1,3 +1,6 @@
+# Dosa Restaurant API
+# This file contains all the API endpoints for customers, items, and orders.
+
 import sqlite3
 import time
 
